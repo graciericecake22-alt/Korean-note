@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="韩语笔记">
+<meta name="theme-color" content="#FAF7F2">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%232C2416'/%3E%3Ctext x='90' y='120' font-family='serif' font-size='100' font-weight='bold' fill='%23FAF7F2' text-anchor='middle'%3E한%3C/text%3E%3C/svg%3E">
+<title>나의 한국어 노트 · 韩语笔记</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;500;700&family=Fraunces:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; padding: 0; background: #FAF7F2; overscroll-behavior-y: contain; }
+  #root { min-height: 100vh; }
+  input, textarea, select, button { font-family: inherit; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: #8B5A2B !important; }
+  .tab-active { background: #2C2416 !important; color: #FAF7F2 !important; }
+  .note-card { transition: all 0.2s ease; cursor: pointer; }
+  .note-card:active { transform: scale(0.99); }
+  .fab { transition: transform 0.2s ease; }
+  .fab:active { transform: scale(0.9); }
+  .form-input { width: 100%; padding: 14px 16px; border: 2px solid #E8DFD0; background: #FAF7F2; border-radius: 12px; font-size: 16px; color: #2C2416; transition: border-color 0.2s; }
+  .form-input.korean { font-family: 'Noto Serif KR', serif; font-size: 22px; font-weight: 500; }
+  .btn-primary { background: #2C2416; color: #FAF7F2; border: none; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: 500; cursor: pointer; }
+  .btn-primary:disabled { background: #C4B5A0; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: #8B6F47; border: none; padding: 14px 20px; font-size: 16px; cursor: pointer; }
+  .type-pill { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+// ============ Icons (simple SVG components, no lucide dependency) ============
+const Icon = ({ path, size = 16, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {path}
+  </svg>
+);
+const SearchIcon = (p) => <Icon size={p.size} color={p.color} path={<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>} />;
+const PlusIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />;
+const TrashIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>} />;
+const BookOpenIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>} />;
+const TypeIcon = (p) => <Icon size={p.size} color={p.color} path={<><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></>} />;
+const MessageIcon = (p) => <Icon size={p.size} color={p.color} path={<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>} />;
+const TvIcon = (p) => <Icon size={p.size} color={p.color} path={<><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></>} />;
+const BookIcon = (p) => <Icon size={p.size} color={p.color} path={<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/>} />;
+const GlobeIcon = (p) => <Icon size={p.size} color={p.color} path={<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>} />;
+const XIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>} />;
+const EditIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>} />;
+const ChevronDownIcon = (p) => <Icon size={p.size} color={p.color} path={<polyline points="6 9 12 15 18 9"/>} />;
+const ChevronUpIcon = (p) => <Icon size={p.size} color={p.color} path={<polyline points="18 15 12 9 6 15"/>} />;
+const VolumeIcon = (p) => <Icon size={p.size} color={p.color} path={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>} />;
+const DownloadIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>} />;
+const UploadIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>} />;
+const AlertIcon = (p) => <Icon size={p.size} color={p.color} path={<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>} />;
+const CopyIcon = (p) => <Icon size={p.size} color={p.color} path={<><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>} />;
+const CheckIcon = (p) => <Icon size={p.size} color={p.color} path={<polyline points="20 6 9 17 4 12"/>} />;
+const LibraryIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></>} />;
+const PasteIcon = (p) => <Icon size={p.size} color={p.color} path={<><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></>} />;
+
+const STORAGE_KEY = 'korean_notes_v3';
+const CUSTOM_LIB_KEY = 'korean_custom_library_v1';
+const BACKUP_REMINDER_KEY = 'korean_notes_last_backup_reminder';
+const BACKUP_INTERVAL_DAYS = 7;
+
+const SOURCES = [
+  { id: 'duolingo', label: '多邻国', icon: BookOpenIcon, color: '#58CC02' },
+  { id: 'tv', label: '电视/影视', icon: TvIcon, color: '#E91E63' },
+  { id: 'book', label: '书籍', icon: BookIcon, color: '#9C27B0' },
+  { id: 'other', label: '其他', icon: GlobeIcon, color: '#607D8B' },
+];
+
+const TYPES = [
+  { id: 'word', label: '单词', icon: TypeIcon },
+  { id: 'grammar', label: '语法', icon: BookOpenIcon },
+  { id: 'sentence', label: '例句', icon: MessageIcon },
+];
+
+// ============ Built-in Library ============
+const BUILTIN_LIBRARY = {
+  "나": [{ko:"나는 학생이에요.",zh:"我是学生。",scene:"自我介绍"},{ko:"나도 같이 갈래.",zh:"我也一起去。",scene:"日常对话"},{ko:"이건 내 거야.",zh:"这是我的。",scene:"日常对话"}],
+  "저": [{ko:"저는 한국 사람이에요.",zh:"我是韩国人。",scene:"自我介绍"},{ko:"저도 모르겠어요.",zh:"我也不知道。",scene:"日常对话"},{ko:"저한테 주세요.",zh:"请给我。",scene:"礼貌请求"}],
+  "너": [{ko:"너는 어디 가?",zh:"你去哪里？",scene:"朋友对话"},{ko:"너도 먹을래?",zh:"你也要吃吗？",scene:"用餐场景"},{ko:"너만 믿어.",zh:"只相信你。",scene:"亲密对话"}],
+  "당신": [{ko:"당신은 누구세요?",zh:"您是谁？",scene:"正式询问"},{ko:"당신을 사랑해요.",zh:"我爱你。",scene:"情感表达"}],
+  "우리": [{ko:"우리 같이 가요.",zh:"我们一起去吧。",scene:"邀请"},{ko:"우리 집에 와.",zh:"来我们家吧。",scene:"邀请"},{ko:"우리 엄마는 선생님이에요.",zh:"我妈妈是老师。",scene:"介绍家人"}],
+  "가다": [{ko:"학교에 가요.",zh:"去学校。",scene:"日常"},{ko:"어디 가세요?",zh:"您去哪儿？",scene:"问候"},{ko:"내일 부산에 가요.",zh:"明天去釜山。",scene:"出行"}],
+  "오다": [{ko:"여기로 오세요.",zh:"请过来这里。",scene:"邀请"},{ko:"비가 와요.",zh:"下雨了。",scene:"天气"},{ko:"친구가 집에 왔어요.",zh:"朋友来家里了。",scene:"日常"}],
+  "먹다": [{ko:"밥 먹었어요?",zh:"吃饭了吗？",scene:"问候"},{ko:"뭐 먹을래요?",zh:"想吃什么？",scene:"点餐"},{ko:"맛있게 드세요.",zh:"请慢用。",scene:"用餐礼仪"}],
+  "마시다": [{ko:"커피 마실래요?",zh:"要喝咖啡吗？",scene:"邀请"},{ko:"물 좀 마시고 싶어요.",zh:"想喝点水。",scene:"请求"},{ko:"어제 술을 많이 마셨어요.",zh:"昨天喝了很多酒。",scene:"聊天"}],
+  "보다": [{ko:"영화 볼래요?",zh:"要看电影吗？",scene:"邀请"},{ko:"이거 한번 봐 주세요.",zh:"请看一下这个。",scene:"请求"},{ko:"어제 친구를 봤어요.",zh:"昨天见了朋友。",scene:"日常"}],
+  "듣다": [{ko:"음악을 들어요.",zh:"听音乐。",scene:"休闲"},{ko:"잘 안 들려요.",zh:"听不清楚。",scene:"对话"},{ko:"그 소식 들었어요?",zh:"听说那个消息了吗？",scene:"聊天"}],
+  "말하다": [{ko:"천천히 말해 주세요.",zh:"请慢慢说。",scene:"请求"},{ko:"한국어로 말할 수 있어요.",zh:"我能说韩语。",scene:"能力表达"},{ko:"사실대로 말해.",zh:"如实说。",scene:"对话"}],
+  "하다": [{ko:"뭐 해요?",zh:"在做什么？",scene:"问候"},{ko:"공부를 해요.",zh:"在学习。",scene:"日常"},{ko:"운동을 자주 해요.",zh:"经常运动。",scene:"聊兴趣"}],
+  "있다": [{ko:"시간 있어요?",zh:"有时间吗？",scene:"邀请"},{ko:"화장실이 어디에 있어요?",zh:"洗手间在哪里？",scene:"问路"},{ko:"동생이 두 명 있어요.",zh:"我有两个弟弟妹妹。",scene:"介绍家人"}],
+  "없다": [{ko:"돈이 없어요.",zh:"没有钱。",scene:"日常"},{ko:"시간이 없어서 못 가요.",zh:"没时间所以去不了。",scene:"拒绝"},{ko:"할 말이 없어요.",zh:"无话可说。",scene:"对话"}],
+  "사다": [{ko:"뭐 살 거예요?",zh:"要买什么？",scene:"购物"},{ko:"선물을 샀어요.",zh:"买了礼物。",scene:"日常"},{ko:"비싸서 못 샀어요.",zh:"太贵了买不了。",scene:"购物"}],
+  "팔다": [{ko:"여기서 뭘 팔아요?",zh:"这里卖什么？",scene:"购物询问"},{ko:"이거 안 팔아요.",zh:"这个不卖。",scene:"购物"}],
+  "주다": [{ko:"이거 주세요.",zh:"请给我这个。",scene:"购物点餐"},{ko:"물 좀 주세요.",zh:"请给我点水。",scene:"请求"},{ko:"친구에게 선물을 줬어요.",zh:"送给朋友礼物了。",scene:"日常"}],
+  "받다": [{ko:"선물을 받았어요.",zh:"收到礼物了。",scene:"日常"},{ko:"전화를 받으세요.",zh:"请接电话。",scene:"提醒"}],
+  "만나다": [{ko:"내일 만나요.",zh:"明天见。",scene:"告别"},{ko:"어디서 만날까요?",zh:"在哪里见面？",scene:"约见面"},{ko:"친구를 만났어요.",zh:"见了朋友。",scene:"日常"}],
+  "알다": [{ko:"그 사람을 알아요?",zh:"认识那个人吗？",scene:"询问"},{ko:"잘 알겠어요.",zh:"我明白了。",scene:"回应"},{ko:"한국어를 좀 알아요.",zh:"懂一点韩语。",scene:"能力表达"}],
+  "모르다": [{ko:"잘 모르겠어요.",zh:"我不太清楚。",scene:"回应询问"},{ko:"이 단어 뜻을 몰라요.",zh:"不知道这个词的意思。",scene:"学习"}],
+  "좋아하다": [{ko:"뭘 좋아해요?",zh:"喜欢什么？",scene:"聊兴趣"},{ko:"한국 음식을 좋아해요.",zh:"喜欢韩国菜。",scene:"聊兴趣"},{ko:"너를 좋아해.",zh:"我喜欢你。",scene:"表白"}],
+  "싫어하다": [{ko:"당근을 싫어해요.",zh:"我讨厌胡萝卜。",scene:"聊喜好"},{ko:"비 오는 날을 싫어해요.",zh:"讨厌下雨天。",scene:"聊喜好"}],
+  "사랑하다": [{ko:"사랑해요.",zh:"我爱你。",scene:"情感表达"},{ko:"가족을 사랑해요.",zh:"爱我的家人。",scene:"情感表达"}],
+  "기다리다": [{ko:"잠시만 기다려 주세요.",zh:"请稍等。",scene:"请求"},{ko:"오래 기다렸어요?",zh:"等了很久吗？",scene:"见面"},{ko:"버스를 기다려요.",zh:"在等公交。",scene:"日常"}],
+  "보내다": [{ko:"문자를 보낼게요.",zh:"我会发短信。",scene:"约定"},{ko:"주말 잘 보내세요.",zh:"周末愉快。",scene:"告别"}],
+  "쓰다": [{ko:"이름을 써 주세요.",zh:"请写一下名字。",scene:"登记"},{ko:"편지를 썼어요.",zh:"写了一封信。",scene:"日常"},{ko:"안경을 써요.",zh:"戴眼镜。",scene:"日常"}],
+  "읽다": [{ko:"책을 읽어요.",zh:"在看书。",scene:"日常"},{ko:"이거 읽을 수 있어요?",zh:"这个能读吗？",scene:"学习"}],
+  "배우다": [{ko:"한국어를 배워요.",zh:"在学韩语。",scene:"学习"},{ko:"뭐를 배우고 싶어요?",zh:"想学什么？",scene:"聊兴趣"}],
+  "가르치다": [{ko:"영어를 가르쳐요.",zh:"教英语。",scene:"工作"},{ko:"이거 가르쳐 주세요.",zh:"请教教我这个。",scene:"请求"}],
+  "공부하다": [{ko:"지금 공부해요.",zh:"正在学习。",scene:"日常"},{ko:"열심히 공부해.",zh:"用功学习哦。",scene:"鼓励"}],
+  "일하다": [{ko:"어디서 일해요?",zh:"在哪里工作？",scene:"自我介绍"},{ko:"오늘은 일 안 해요.",zh:"今天不上班。",scene:"日常"}],
+  "살다": [{ko:"어디에 살아요?",zh:"住在哪里？",scene:"了解对方"},{ko:"서울에 살아요.",zh:"住在首尔。",scene:"自我介绍"}],
+  "자다": [{ko:"잘 잤어요?",zh:"睡得好吗？",scene:"早上问候"},{ko:"일찍 자야 돼요.",zh:"得早点睡。",scene:"提醒"},{ko:"잘 자.",zh:"晚安。",scene:"告别"}],
+  "일어나다": [{ko:"몇 시에 일어나요?",zh:"几点起床？",scene:"日常"},{ko:"빨리 일어나!",zh:"快起床！",scene:"催促"}],
+  "걷다": [{ko:"같이 걸어요.",zh:"一起走吧。",scene:"邀请"},{ko:"천천히 걸어요.",zh:"慢慢走。",scene:"日常"}],
+  "뛰다": [{ko:"왜 뛰어요?",zh:"为什么在跑？",scene:"询问"},{ko:"공원에서 뛰어요.",zh:"在公园跑步。",scene:"运动"}],
+  "타다": [{ko:"버스를 타요.",zh:"坐公交。",scene:"出行"},{ko:"택시 탈까요?",zh:"要打车吗？",scene:"提议"}],
+  "내리다": [{ko:"다음 역에서 내려요.",zh:"下一站下车。",scene:"出行"},{ko:"비가 내려요.",zh:"下雨了。",scene:"天气"}],
+  "쉬다": [{ko:"좀 쉬세요.",zh:"请休息一下。",scene:"关心"},{ko:"주말에 집에서 쉬어요.",zh:"周末在家休息。",scene:"日常"}],
+  "놀다": [{ko:"같이 놀자.",zh:"一起玩吧。",scene:"邀请"},{ko:"친구랑 놀았어요.",zh:"和朋友玩了。",scene:"日常"}],
+  "웃다": [{ko:"왜 웃어요?",zh:"笑什么？",scene:"询问"},{ko:"많이 웃으세요.",zh:"多笑笑吧。",scene:"鼓励"}],
+  "울다": [{ko:"왜 울어요?",zh:"为什么哭？",scene:"关心"},{ko:"울지 마.",zh:"别哭了。",scene:"安慰"}],
+  "찾다": [{ko:"뭐 찾아요?",zh:"在找什么？",scene:"询问"},{ko:"지갑을 찾았어요.",zh:"找到钱包了。",scene:"日常"}],
+  "들어가다": [{ko:"안에 들어가세요.",zh:"请进。",scene:"邀请"},{ko:"방에 들어갔어요.",zh:"进房间了。",scene:"日常"}],
+  "나가다": [{ko:"밖에 나가요.",zh:"出门去。",scene:"日常"},{ko:"잠깐 나갔다 올게요.",zh:"我出去一下。",scene:"告知"}],
+  "시작하다": [{ko:"수업을 시작해요.",zh:"开始上课。",scene:"学习"},{ko:"언제 시작해요?",zh:"什么时候开始？",scene:"询问"}],
+  "끝나다": [{ko:"수업이 끝났어요.",zh:"课结束了。",scene:"学习"},{ko:"몇 시에 끝나요?",zh:"几点结束？",scene:"询问"}],
+  "좋다": [{ko:"기분이 좋아요.",zh:"心情很好。",scene:"情绪"},{ko:"이게 더 좋아요.",zh:"这个更好。",scene:"比较"},{ko:"날씨가 좋네요.",zh:"天气真好。",scene:"天气"}],
+  "나쁘다": [{ko:"기분이 나빠요.",zh:"心情不好。",scene:"情绪"},{ko:"그 사람은 나쁜 사람이에요.",zh:"那个人是坏人。",scene:"评价"}],
+  "크다": [{ko:"집이 커요.",zh:"房子很大。",scene:"描述"},{ko:"사이즈가 너무 커요.",zh:"尺码太大了。",scene:"购物"}],
+  "작다": [{ko:"방이 작아요.",zh:"房间很小。",scene:"描述"},{ko:"이건 좀 작네요.",zh:"这个有点小。",scene:"购物"}],
+  "많다": [{ko:"사람이 많아요.",zh:"人很多。",scene:"描述"},{ko:"할 일이 많아요.",zh:"事情很多。",scene:"日常"}],
+  "적다": [{ko:"사람이 적어요.",zh:"人很少。",scene:"描述"},{ko:"양이 너무 적어요.",zh:"量太少了。",scene:"用餐"}],
+  "비싸다": [{ko:"너무 비싸요.",zh:"太贵了。",scene:"购物"},{ko:"이 가게는 비싸요.",zh:"这家店很贵。",scene:"评价"}],
+  "싸다": [{ko:"여기는 싸요.",zh:"这里很便宜。",scene:"购物"},{ko:"싼 거 있어요?",zh:"有便宜的吗？",scene:"购物"}],
+  "예쁘다": [{ko:"옷이 예뻐요.",zh:"衣服很漂亮。",scene:"称赞"},{ko:"오늘 예쁘네요.",zh:"今天真漂亮。",scene:"称赞"}],
+  "귀엽다": [{ko:"강아지가 귀여워요.",zh:"小狗好可爱。",scene:"称赞"},{ko:"너무 귀엽다!",zh:"好可爱！",scene:"称赞"}],
+  "맛있다": [{ko:"정말 맛있어요!",zh:"真好吃！",scene:"用餐"},{ko:"뭐가 제일 맛있어요?",zh:"什么最好吃？",scene:"点餐"}],
+  "맛없다": [{ko:"이 음식 맛없어요.",zh:"这个菜不好吃。",scene:"用餐"}],
+  "재미있다": [{ko:"그 영화 재미있어요.",zh:"那部电影很有趣。",scene:"推荐"},{ko:"재미있는 일 있어요?",zh:"有什么有趣的事吗？",scene:"聊天"}],
+  "재미없다": [{ko:"이 책 재미없어요.",zh:"这本书无聊。",scene:"评价"}],
+  "쉽다": [{ko:"한국어 쉬워요?",zh:"韩语容易吗？",scene:"学习"},{ko:"이 문제는 쉬워요.",zh:"这道题简单。",scene:"学习"}],
+  "어렵다": [{ko:"한국어가 어려워요.",zh:"韩语很难。",scene:"学习"},{ko:"이 일이 어려워요.",zh:"这件事很难。",scene:"日常"}],
+  "빠르다": [{ko:"너무 빠르게 말해요.",zh:"说得太快了。",scene:"对话"},{ko:"버스가 빨라요.",zh:"公交很快。",scene:"出行"}],
+  "느리다": [{ko:"왜 이렇게 느려요?",zh:"怎么这么慢？",scene:"询问"},{ko:"인터넷이 느려요.",zh:"网络很慢。",scene:"日常"}],
+  "덥다": [{ko:"오늘 덥네요.",zh:"今天真热。",scene:"天气"},{ko:"방이 너무 더워요.",zh:"房间太热了。",scene:"日常"}],
+  "춥다": [{ko:"밖이 추워요.",zh:"外面很冷。",scene:"天气"},{ko:"춥지 않아요?",zh:"不冷吗？",scene:"关心"}],
+  "따뜻하다": [{ko:"날씨가 따뜻해요.",zh:"天气暖和。",scene:"天气"},{ko:"따뜻한 차 드세요.",zh:"请喝暖茶。",scene:"招待"}],
+  "시원하다": [{ko:"맥주가 시원해요.",zh:"啤酒很凉爽。",scene:"用餐"},{ko:"바람이 시원해요.",zh:"风很凉爽。",scene:"天气"}],
+  "바쁘다": [{ko:"요즘 바빠요?",zh:"最近忙吗？",scene:"问候"},{ko:"지금 좀 바빠요.",zh:"现在有点忙。",scene:"拒绝"}],
+  "피곤하다": [{ko:"너무 피곤해요.",zh:"太累了。",scene:"情绪"},{ko:"피곤해 보여요.",zh:"看起来很累。",scene:"关心"}],
+  "행복하다": [{ko:"정말 행복해요.",zh:"真的很幸福。",scene:"情绪"},{ko:"행복하세요.",zh:"祝你幸福。",scene:"祝福"}],
+  "슬프다": [{ko:"왜 슬퍼요?",zh:"为什么伤心？",scene:"关心"},{ko:"그 영화 슬퍼요.",zh:"那部电影很伤感。",scene:"评价"}],
+  "기쁘다": [{ko:"만나서 기뻐요.",zh:"见到你很高兴。",scene:"见面"},{ko:"정말 기뻐요.",zh:"真的很开心。",scene:"情绪"}],
+  "화나다": [{ko:"화나지 마세요.",zh:"请别生气。",scene:"安抚"},{ko:"왜 화났어요?",zh:"为什么生气？",scene:"关心"}],
+  "괜찮다": [{ko:"괜찮아요.",zh:"没关系。",scene:"回应"},{ko:"이거 괜찮아요?",zh:"这个可以吗？",scene:"询问"},{ko:"맛이 괜찮네요.",zh:"味道还不错。",scene:"用餐"}],
+  "이상하다": [{ko:"맛이 좀 이상해요.",zh:"味道有点奇怪。",scene:"用餐"},{ko:"이상한 사람이에요.",zh:"是个奇怪的人。",scene:"评价"}],
+  "같다": [{ko:"저랑 같아요.",zh:"和我一样。",scene:"对比"},{ko:"비가 올 것 같아요.",zh:"好像要下雨。",scene:"推测"}],
+  "다르다": [{ko:"생각이 달라요.",zh:"想法不一样。",scene:"讨论"},{ko:"맛이 다르네요.",zh:"味道不同呢。",scene:"用餐"}],
+  "높다": [{ko:"산이 높아요.",zh:"山很高。",scene:"描述"},{ko:"값이 높아요.",zh:"价格高。",scene:"购物"}],
+  "낮다": [{ko:"온도가 낮아요.",zh:"温度低。",scene:"天气"}],
+  "길다": [{ko:"머리가 길어요.",zh:"头发很长。",scene:"描述"},{ko:"줄이 길어요.",zh:"队很长。",scene:"排队"}],
+  "짧다": [{ko:"치마가 짧아요.",zh:"裙子很短。",scene:"描述"},{ko:"시간이 짧아요.",zh:"时间很短。",scene:"日常"}],
+  "멀다": [{ko:"집이 멀어요?",zh:"家远吗？",scene:"了解对方"},{ko:"여기서 멀어요.",zh:"离这里很远。",scene:"问路"}],
+  "가깝다": [{ko:"지하철역이 가까워요.",zh:"地铁站很近。",scene:"问路"},{ko:"친한 친구예요.",zh:"是亲近的朋友。",scene:"介绍"}],
+  "오늘": [{ko:"오늘 뭐 해요?",zh:"今天做什么？",scene:"聊天"},{ko:"오늘은 월요일이에요.",zh:"今天是星期一。",scene:"日常"}],
+  "어제": [{ko:"어제 뭐 했어요?",zh:"昨天做什么了？",scene:"聊天"},{ko:"어제 영화 봤어요.",zh:"昨天看了电影。",scene:"聊天"}],
+  "내일": [{ko:"내일 만나요.",zh:"明天见。",scene:"告别"},{ko:"내일 비 와요?",zh:"明天下雨吗？",scene:"天气"}],
+  "모레": [{ko:"모레 시간 있어요?",zh:"后天有空吗？",scene:"约见面"}],
+  "지금": [{ko:"지금 어디예요?",zh:"现在在哪儿？",scene:"询问"},{ko:"지금 출발할게요.",zh:"现在就出发。",scene:"约见面"}],
+  "아침": [{ko:"아침 먹었어요?",zh:"吃早饭了吗？",scene:"问候"},{ko:"아침에 운동해요.",zh:"早上运动。",scene:"日常"}],
+  "점심": [{ko:"점심 뭐 먹을까요?",zh:"中午吃什么呢？",scene:"用餐"},{ko:"점심 같이 먹어요.",zh:"一起吃午饭吧。",scene:"邀请"}],
+  "저녁": [{ko:"저녁에 만나요.",zh:"晚上见。",scene:"约定"},{ko:"저녁 먹었어요?",zh:"吃晚饭了吗？",scene:"问候"}],
+  "밤": [{ko:"밤이 늦었어요.",zh:"夜深了。",scene:"日常"},{ko:"밤에 잠이 안 와요.",zh:"晚上睡不着。",scene:"失眠"}],
+  "주말": [{ko:"주말에 뭐 해요?",zh:"周末做什么？",scene:"聊天"},{ko:"주말 잘 보내세요.",zh:"周末愉快。",scene:"告别"}],
+  "월요일": [{ko:"월요일이 싫어요.",zh:"讨厌星期一。",scene:"日常"}],
+  "화요일": [{ko:"화요일에 만나요.",zh:"星期二见。",scene:"约定"}],
+  "수요일": [{ko:"수요일까지 끝낼게요.",zh:"周三之前完成。",scene:"工作"}],
+  "목요일": [{ko:"목요일에 시간 있어요?",zh:"周四有空吗？",scene:"约见面"}],
+  "금요일": [{ko:"금요일이라 좋아요.",zh:"周五真好。",scene:"情绪"},{ko:"금요일 저녁에 만나요.",zh:"周五晚上见。",scene:"约定"}],
+  "토요일": [{ko:"토요일에 영화 볼래요?",zh:"周六要看电影吗？",scene:"邀请"}],
+  "일요일": [{ko:"일요일에는 쉬어요.",zh:"周日休息。",scene:"日常"}],
+  "시간": [{ko:"지금 몇 시예요?",zh:"现在几点？",scene:"询问时间"},{ko:"시간이 없어요.",zh:"没时间。",scene:"拒绝"},{ko:"시간 좀 내 줘.",zh:"抽点时间吧。",scene:"请求"}],
+  "밥": [{ko:"밥 먹었어요?",zh:"吃饭了吗？",scene:"问候"},{ko:"밥 한 그릇 더 주세요.",zh:"请再来一碗饭。",scene:"用餐"}],
+  "물": [{ko:"물 좀 주세요.",zh:"请给我点水。",scene:"用餐"},{ko:"물 마실래요?",zh:"要喝水吗？",scene:"招待"}],
+  "커피": [{ko:"커피 한 잔 주세요.",zh:"请来一杯咖啡。",scene:"点单"},{ko:"커피 좋아해요?",zh:"喜欢咖啡吗？",scene:"聊喜好"}],
+  "차": [{ko:"차 한 잔 드세요.",zh:"请喝杯茶。",scene:"招待"}],
+  "우유": [{ko:"우유 있어요?",zh:"有牛奶吗？",scene:"购物"}],
+  "빵": [{ko:"아침에 빵을 먹어요.",zh:"早上吃面包。",scene:"用餐"}],
+  "김치": [{ko:"김치 좋아해요?",zh:"喜欢泡菜吗？",scene:"聊喜好"},{ko:"김치찌개 먹을래요?",zh:"要吃泡菜汤吗？",scene:"点餐"}],
+  "라면": [{ko:"라면 끓여 먹을까?",zh:"煮泡面吃吧？",scene:"用餐"},{ko:"라면 너무 좋아해요.",zh:"超喜欢泡面。",scene:"聊喜好"}],
+  "고기": [{ko:"고기 먹고 싶어요.",zh:"想吃肉。",scene:"用餐"},{ko:"고기 안 먹어요.",zh:"不吃肉。",scene:"用餐"}],
+  "과일": [{ko:"과일 좋아해요.",zh:"喜欢水果。",scene:"聊喜好"}],
+  "사과": [{ko:"사과 한 개 주세요.",zh:"请来一个苹果。",scene:"购物"}],
+  "맥주": [{ko:"맥주 한 잔 할래요?",zh:"来一杯啤酒吗？",scene:"邀请"}],
+  "집": [{ko:"집에 가요.",zh:"回家。",scene:"日常"},{ko:"집이 어디예요?",zh:"家在哪？",scene:"了解对方"}],
+  "학교": [{ko:"학교 다녀요?",zh:"在上学吗？",scene:"了解对方"},{ko:"학교 어디예요?",zh:"学校在哪？",scene:"了解对方"}],
+  "회사": [{ko:"회사에 다녀요.",zh:"在上班。",scene:"工作"},{ko:"회사가 멀어요.",zh:"公司很远。",scene:"聊工作"}],
+  "병원": [{ko:"병원에 가요.",zh:"去医院。",scene:"日常"},{ko:"병원이 어디예요?",zh:"医院在哪？",scene:"问路"}],
+  "은행": [{ko:"은행이 어디에 있어요?",zh:"银行在哪？",scene:"问路"}],
+  "식당": [{ko:"맛있는 식당 알아요?",zh:"知道好吃的餐厅吗？",scene:"聊吃"}],
+  "카페": [{ko:"카페에서 만나요.",zh:"在咖啡厅见面吧。",scene:"约见面"}],
+  "공원": [{ko:"공원에서 산책해요.",zh:"在公园散步。",scene:"日常"}],
+  "지하철": [{ko:"지하철로 가요.",zh:"坐地铁去。",scene:"出行"}],
+  "버스": [{ko:"버스 정류장이 어디예요?",zh:"公交站在哪？",scene:"问路"}],
+  "공항": [{ko:"공항까지 얼마나 걸려요?",zh:"到机场要多久？",scene:"出行"}],
+  "시장": [{ko:"시장에 가요.",zh:"去市场。",scene:"日常"}],
+  "사람": [{ko:"그 사람 누구예요?",zh:"那个人是谁？",scene:"询问"},{ko:"한국 사람이에요.",zh:"是韩国人。",scene:"介绍"}],
+  "친구": [{ko:"제 친구예요.",zh:"是我朋友。",scene:"介绍"},{ko:"친구 만나러 가요.",zh:"去见朋友。",scene:"日常"}],
+  "가족": [{ko:"가족이 몇 명이에요?",zh:"家里几个人？",scene:"了解对方"}],
+  "엄마": [{ko:"엄마, 사랑해요.",zh:"妈妈，我爱你。",scene:"家庭"},{ko:"엄마한테 전화할게요.",zh:"我给妈妈打电话。",scene:"家庭"}],
+  "아빠": [{ko:"아빠 어디 가셨어요?",zh:"爸爸去哪了？",scene:"家庭"}],
+  "형": [{ko:"형, 같이 가자.",zh:"哥，一起去吧。",scene:"家庭(男对男)"}],
+  "오빠": [{ko:"오빠, 뭐 해?",zh:"哥哥，在做什么？",scene:"家庭(女对男)"}],
+  "누나": [{ko:"누나, 도와줘.",zh:"姐，帮帮我。",scene:"家庭(男对女)"}],
+  "언니": [{ko:"언니, 예뻐요.",zh:"姐姐，你真漂亮。",scene:"家庭(女对女)"}],
+  "동생": [{ko:"동생이 둘 있어요.",zh:"我有两个弟弟妹妹。",scene:"介绍家人"}],
+  "선생님": [{ko:"선생님 안녕하세요.",zh:"老师好。",scene:"学校"}],
+  "학생": [{ko:"저는 학생이에요.",zh:"我是学生。",scene:"自我介绍"}],
+  "하나": [{ko:"하나만 주세요.",zh:"请给我一个。",scene:"购物"}],
+  "둘": [{ko:"사람이 둘이에요.",zh:"两个人。",scene:"点餐"}],
+  "셋": [{ko:"셋까지 셀게요.",zh:"我数到三。",scene:"日常"}],
+  "개": [{ko:"두 개 주세요.",zh:"请给我两个。",scene:"购物"}],
+  "명": [{ko:"몇 명이에요?",zh:"几个人？",scene:"点餐"},{ko:"두 명입니다.",zh:"两个人。",scene:"点餐"}],
+  "분": [{ko:"몇 분이세요?",zh:"几位？",scene:"餐厅敬语"}],
+  "원": [{ko:"오천 원입니다.",zh:"五千韩元。",scene:"购物"},{ko:"얼마예요? 만 원이에요.",zh:"多少钱？一万韩元。",scene:"购物"}],
+  "안녕하세요": [{ko:"안녕하세요, 처음 뵙겠습니다.",zh:"您好，初次见面。",scene:"初次见面"}],
+  "감사합니다": [{ko:"도와주셔서 감사합니다.",zh:"谢谢您的帮助。",scene:"致谢"}],
+  "고맙다": [{ko:"정말 고마워요.",zh:"真的谢谢。",scene:"致谢"},{ko:"고마워, 친구야.",zh:"谢了，朋友。",scene:"朋友间"}],
+  "죄송합니다": [{ko:"늦어서 죄송합니다.",zh:"对不起我迟到了。",scene:"道歉"}],
+  "미안하다": [{ko:"미안해요.",zh:"对不起。",scene:"道歉"},{ko:"정말 미안해.",zh:"真的对不起。",scene:"道歉"}],
+  "뭐": [{ko:"이게 뭐예요?",zh:"这是什么？",scene:"询问"},{ko:"뭐 먹을래요?",zh:"想吃什么？",scene:"用餐"}],
+  "누구": [{ko:"이 사람 누구예요?",zh:"这是谁？",scene:"询问"}],
+  "어디": [{ko:"어디 가요?",zh:"去哪儿？",scene:"问候"},{ko:"화장실이 어디예요?",zh:"洗手间在哪？",scene:"问路"}],
+  "언제": [{ko:"언제 만날까요?",zh:"什么时候见面？",scene:"约见面"}],
+  "왜": [{ko:"왜 안 와요?",zh:"为什么不来？",scene:"询问"},{ko:"왜 그래요?",zh:"怎么了？",scene:"关心"}],
+  "어떻게": [{ko:"어떻게 가요?",zh:"怎么去？",scene:"问路"},{ko:"이거 어떻게 해요?",zh:"这个怎么做？",scene:"请教"}],
+  "얼마": [{ko:"이거 얼마예요?",zh:"这个多少钱？",scene:"购物"},{ko:"얼마나 걸려요?",zh:"要多久？",scene:"询问"}],
+  "몇": [{ko:"몇 살이에요?",zh:"几岁？",scene:"了解对方"},{ko:"몇 시예요?",zh:"几点？",scene:"询问时间"}],
+  "정말": [{ko:"정말 맛있어요.",zh:"真的好吃。",scene:"用餐"},{ko:"정말요?",zh:"真的吗？",scene:"回应"}],
+  "진짜": [{ko:"진짜 좋아.",zh:"真的喜欢。",scene:"情感"},{ko:"진짜 추워.",zh:"真冷。",scene:"天气"}],
+  "너무": [{ko:"너무 비싸요.",zh:"太贵了。",scene:"购物"},{ko:"너무 좋아요.",zh:"太好了。",scene:"情绪"}],
+  "조금": [{ko:"조금만 주세요.",zh:"请只给一点。",scene:"用餐"},{ko:"조금 피곤해요.",zh:"有点累。",scene:"情绪"}],
+  "많이": [{ko:"많이 드세요.",zh:"请多吃点。",scene:"招待"},{ko:"많이 사랑해.",zh:"好爱你。",scene:"情感"}],
+  "잘": [{ko:"잘 지내요?",zh:"过得好吗？",scene:"问候"},{ko:"잘 모르겠어요.",zh:"不太清楚。",scene:"回应"}],
+  "빨리": [{ko:"빨리 와요.",zh:"快点来。",scene:"催促"},{ko:"빨리 가야 돼요.",zh:"得快点走。",scene:"日常"}],
+  "천천히": [{ko:"천천히 말해 주세요.",zh:"请慢慢说。",scene:"请求"},{ko:"천천히 드세요.",zh:"请慢用。",scene:"用餐"}],
+  "다시": [{ko:"다시 말해 주세요.",zh:"请再说一遍。",scene:"请求"},{ko:"다시 만나요.",zh:"再见。",scene:"告别"}],
+  "또": [{ko:"또 만나요.",zh:"再见。",scene:"告别"},{ko:"또 비가 와요.",zh:"又下雨了。",scene:"天气"}],
+  "같이": [{ko:"같이 가요.",zh:"一起去吧。",scene:"邀请"},{ko:"같이 밥 먹어요.",zh:"一起吃饭吧。",scene:"邀请"}],
+  "혼자": [{ko:"혼자 사세요?",zh:"一个人住吗？",scene:"了解对方"},{ko:"혼자 갔어요.",zh:"一个人去的。",scene:"聊天"}],
+  "아주": [{ko:"아주 좋아요.",zh:"非常好。",scene:"评价"}],
+  "더": [{ko:"더 주세요.",zh:"请再给一些。",scene:"用餐"},{ko:"더 좋아요.",zh:"更好。",scene:"比较"}],
+  "제일": [{ko:"제일 좋아하는 음식이 뭐예요?",zh:"最喜欢的菜是什么？",scene:"聊喜好"}],
+  "가장": [{ko:"가장 좋아해요.",zh:"最喜欢。",scene:"聊喜好"}],
+  "벌써": [{ko:"벌써 끝났어요?",zh:"已经结束了？",scene:"意外"}],
+  "아직": [{ko:"아직 안 끝났어요.",zh:"还没结束。",scene:"回应"},{ko:"아직 일어났어요?",zh:"还没起床吗？",scene:"日常"}],
+  "이미": [{ko:"이미 했어요.",zh:"已经做了。",scene:"回应"}],
+  "머리": [{ko:"머리가 아파요.",zh:"头疼。",scene:"身体不适"},{ko:"머리를 잘랐어요.",zh:"剪了头发。",scene:"日常"}],
+  "얼굴": [{ko:"얼굴이 빨개졌어요.",zh:"脸红了。",scene:"情绪"},{ko:"얼굴 좋아 보여요.",zh:"气色不错。",scene:"称赞"}],
+  "눈": [{ko:"눈이 예뻐요.",zh:"眼睛很漂亮。",scene:"称赞"},{ko:"눈이 와요.",zh:"下雪了。",scene:"天气"}],
+  "손": [{ko:"손 씻으세요.",zh:"请洗手。",scene:"卫生"},{ko:"손 좀 잡아 줘.",zh:"牵一下我的手。",scene:"亲密"}],
+  "발": [{ko:"발이 아파요.",zh:"脚疼。",scene:"身体不适"}],
+  "배": [{ko:"배가 고파요.",zh:"肚子饿了。",scene:"用餐"},{ko:"배가 너무 불러요.",zh:"肚子好饱。",scene:"用餐"}],
+  "옷": [{ko:"옷이 예뻐요.",zh:"衣服很漂亮。",scene:"称赞"},{ko:"옷 입어 봐도 돼요?",zh:"可以试穿吗？",scene:"购物"}],
+  "신발": [{ko:"이 신발 어때요?",zh:"这双鞋怎么样？",scene:"购物"}],
+  "가방": [{ko:"가방이 무거워요.",zh:"包很重。",scene:"日常"},{ko:"이 가방 어디서 샀어요?",zh:"这包在哪买的？",scene:"聊天"}],
+  "모자": [{ko:"모자가 잘 어울려요.",zh:"帽子很适合你。",scene:"称赞"}],
+  "안경": [{ko:"안경을 잃어버렸어요.",zh:"眼镜丢了。",scene:"麻烦"}],
+  "걱정": [{ko:"걱정하지 마세요.",zh:"别担心。",scene:"安慰"},{ko:"너무 걱정돼요.",zh:"好担心。",scene:"情绪"}],
+  "긴장": [{ko:"너무 긴장돼요.",zh:"好紧张。",scene:"情绪"},{ko:"긴장 풀어요.",zh:"放松点。",scene:"安抚"}],
+  "스트레스": [{ko:"스트레스 받아요.",zh:"压力很大。",scene:"情绪"},{ko:"스트레스 어떻게 풀어요?",zh:"怎么减压？",scene:"聊天"}],
+  "기분": [{ko:"오늘 기분이 좋아요.",zh:"今天心情好。",scene:"情绪"},{ko:"기분이 어때요?",zh:"心情怎么样？",scene:"关心"}],
+  "마음": [{ko:"마음이 아파요.",zh:"心痛。",scene:"情感"},{ko:"마음에 들어요.",zh:"我很喜欢。",scene:"购物"}],
+  "사랑": [{ko:"사랑이 뭘까요?",zh:"爱是什么呢？",scene:"感悟"},{ko:"첫사랑이 누구예요?",zh:"初恋是谁？",scene:"聊天"}],
+  "꿈": [{ko:"꿈이 뭐예요?",zh:"梦想是什么？",scene:"聊未来"},{ko:"어젯밤에 이상한 꿈을 꿨어요.",zh:"昨晚做了个奇怪的梦。",scene:"聊天"}],
+  "희망": [{ko:"희망을 잃지 마세요.",zh:"请别失去希望。",scene:"鼓励"}],
+  "날씨": [{ko:"오늘 날씨가 좋아요.",zh:"今天天气好。",scene:"天气"},{ko:"날씨가 어때요?",zh:"天气怎么样？",scene:"询问"}],
+  "비": [{ko:"비가 와요.",zh:"下雨了。",scene:"天气"},{ko:"비가 그쳤어요.",zh:"雨停了。",scene:"天气"}],
+  "바람": [{ko:"바람이 세요.",zh:"风很大。",scene:"天气"},{ko:"시원한 바람이에요.",zh:"凉爽的风。",scene:"天气"}],
+  "영화": [{ko:"무슨 영화 좋아해요?",zh:"喜欢什么电影？",scene:"聊兴趣"},{ko:"영화 보러 갈까요?",zh:"去看电影吗？",scene:"邀请"}],
+  "음악": [{ko:"어떤 음악 들어요?",zh:"听什么音乐？",scene:"聊兴趣"},{ko:"음악 소리 좀 줄여요.",zh:"把音乐声调小点。",scene:"请求"}],
+  "노래": [{ko:"노래 잘하세요.",zh:"您唱得真好。",scene:"称赞"},{ko:"노래방 갈래요?",zh:"去 KTV 吗？",scene:"邀请"}],
+  "운동": [{ko:"무슨 운동 좋아해요?",zh:"喜欢什么运动？",scene:"聊兴趣"},{ko:"운동해야 돼요.",zh:"得运动才行。",scene:"决心"}],
+  "여행": [{ko:"여행 가고 싶어요.",zh:"想去旅行。",scene:"聊愿望"},{ko:"어디로 여행 갔어요?",zh:"去哪里旅行了？",scene:"聊天"}],
+  "사진": [{ko:"사진 찍어 주세요.",zh:"请帮我拍张照。",scene:"请求"},{ko:"사진이 잘 나왔어요.",zh:"照片拍得很好。",scene:"评价"}],
+  "책": [{ko:"무슨 책 읽어요?",zh:"在看什么书？",scene:"聊兴趣"},{ko:"이 책 추천해요.",zh:"推荐这本书。",scene:"推荐"}],
+  "전화": [{ko:"전화해 줘.",zh:"给我打电话。",scene:"请求"},{ko:"나중에 전화할게요.",zh:"晚点打给你。",scene:"约定"}],
+  "문자": [{ko:"문자 보냈어요.",zh:"我发了短信。",scene:"联系"},{ko:"문자 확인해 보세요.",zh:"请查看一下短信。",scene:"提醒"}],
+  "돈": [{ko:"돈이 없어요.",zh:"没钱。",scene:"日常"},{ko:"돈 좀 빌려 줘.",zh:"借我点钱。",scene:"请求"}],
+  "지갑": [{ko:"지갑을 잃어버렸어요.",zh:"钱包丢了。",scene:"麻烦"}],
+  "카드": [{ko:"카드로 결제할게요.",zh:"用卡支付。",scene:"结账"},{ko:"카드 되나요?",zh:"可以刷卡吗？",scene:"购物"}],
+  "심심하다": [{ko:"심심해 죽겠어요.",zh:"无聊死了。",scene:"情绪"},{ko:"심심하면 영화 봐요.",zh:"无聊就看电影。",scene:"建议"}],
+  "외롭다": [{ko:"혼자 있으니까 외로워요.",zh:"一个人就觉得孤独。",scene:"情感"}],
+  "그립다": [{ko:"가족이 그리워요.",zh:"想念家人。",scene:"情感"},{ko:"옛날이 그리워요.",zh:"怀念过去。",scene:"感慨"}],
+  "보고 싶다": [{ko:"보고 싶었어요.",zh:"好想你。",scene:"见面"},{ko:"엄마가 보고 싶어요.",zh:"想妈妈了。",scene:"情感"}],
+  "아프다": [{ko:"어디가 아파요?",zh:"哪里不舒服？",scene:"关心"},{ko:"머리가 아파요.",zh:"头疼。",scene:"身体不适"}],
+  "건강하다": [{ko:"건강하세요.",zh:"请保重身体。",scene:"祝福"},{ko:"건강이 제일이에요.",zh:"健康最重要。",scene:"感慨"}],
+  "조용하다": [{ko:"여기 조용하네요.",zh:"这里很安静。",scene:"评价"},{ko:"조용히 해 주세요.",zh:"请安静。",scene:"请求"}],
+  "시끄럽다": [{ko:"여기 너무 시끄러워요.",zh:"这里太吵了。",scene:"评价"}],
+  "깨끗하다": [{ko:"방이 깨끗해요.",zh:"房间很干净。",scene:"评价"}],
+  "더럽다": [{ko:"여기 더러워요.",zh:"这里很脏。",scene:"评价"}],
+  "위험하다": [{ko:"위험해요! 조심하세요.",zh:"危险！小心。",scene:"警告"}],
+  "편하다": [{ko:"이 옷이 편해요.",zh:"这件衣服很舒服。",scene:"评价"},{ko:"편하게 앉으세요.",zh:"请随意坐。",scene:"招待"}],
+  "불편하다": [{ko:"이 의자 불편해요.",zh:"这把椅子不舒服。",scene:"评价"}],
+  "중요하다": [{ko:"이게 제일 중요해요.",zh:"这最重要。",scene:"强调"},{ko:"중요한 일이 있어요.",zh:"有重要的事。",scene:"日常"}],
+  "필요하다": [{ko:"도움이 필요해요.",zh:"需要帮助。",scene:"求助"},{ko:"뭐가 필요해요?",zh:"需要什么？",scene:"询问"}],
+  "생각하다": [{ko:"무슨 생각해요?",zh:"在想什么？",scene:"关心"},{ko:"잠시 생각해 볼게요.",zh:"让我想一下。",scene:"回应"}],
+  "느끼다": [{ko:"어떻게 느꼈어요?",zh:"感觉如何？",scene:"询问"},{ko:"행복을 느껴요.",zh:"感受到幸福。",scene:"情感"}],
+  "결정하다": [{ko:"결정했어요.",zh:"决定了。",scene:"决定"},{ko:"아직 결정 못 했어요.",zh:"还没决定。",scene:"犹豫"}],
+  "약속하다": [{ko:"약속할게요.",zh:"我保证。",scene:"约定"},{ko:"친구랑 약속이 있어요.",zh:"和朋友有约。",scene:"日常"}],
+  "준비하다": [{ko:"준비 다 됐어요?",zh:"都准备好了吗？",scene:"出发前"},{ko:"시험 준비해야 돼요.",zh:"得准备考试。",scene:"学习"}],
+  "도와주다": [{ko:"도와주세요.",zh:"请帮帮我。",scene:"求助"},{ko:"도와줘서 고마워요.",zh:"谢谢你帮我。",scene:"致谢"}],
+  "부탁하다": [{ko:"부탁이 있어요.",zh:"有事相求。",scene:"请求"},{ko:"잘 부탁드립니다.",zh:"请多关照。",scene:"正式"}],
+  "축하하다": [{ko:"생일 축하해요!",zh:"生日快乐！",scene:"祝福"},{ko:"결혼 축하합니다.",zh:"新婚快乐。",scene:"祝福"}],
+  "초대하다": [{ko:"집에 초대하고 싶어요.",zh:"想请你来家里。",scene:"邀请"}],
+  "설명하다": [{ko:"다시 설명해 주세요.",zh:"请再解释一下。",scene:"请求"}],
+  "이해하다": [{ko:"이해했어요?",zh:"明白了吗？",scene:"确认"},{ko:"잘 이해 못 했어요.",zh:"没完全理解。",scene:"回应"}],
+  "기억하다": [{ko:"기억나요?",zh:"记得吗？",scene:"询问"},{ko:"잘 기억 안 나요.",zh:"记不太清。",scene:"回应"}],
+  "잊다": [{ko:"잊지 마세요.",zh:"别忘了。",scene:"提醒"},{ko:"이름을 잊어버렸어요.",zh:"忘了名字。",scene:"尴尬"}],
+  "잃어버리다": [{ko:"휴대폰을 잃어버렸어요.",zh:"手机丢了。",scene:"麻烦"}],
+  "확인하다": [{ko:"한번 확인해 주세요.",zh:"请确认一下。",scene:"请求"}],
+  "예약하다": [{ko:"식당을 예약했어요.",zh:"预订了餐厅。",scene:"安排"}],
+  "취소하다": [{ko:"예약을 취소하고 싶어요.",zh:"想取消预约。",scene:"处理"}],
+  "참다": [{ko:"조금만 참아요.",zh:"再忍一下。",scene:"鼓励"}],
+  "포기하다": [{ko:"포기하지 마.",zh:"别放弃。",scene:"鼓励"}],
+  "노력하다": [{ko:"더 노력할게요.",zh:"我会更努力。",scene:"决心"}],
+  "성공하다": [{ko:"꼭 성공할 거예요.",zh:"一定会成功。",scene:"鼓励"}],
+  "실패하다": [{ko:"실패해도 괜찮아요.",zh:"失败了也没关系。",scene:"安慰"}],
+  "걱정하다": [{ko:"너무 걱정하지 마.",zh:"别太担心。",scene:"安慰"}],
+  "고민하다": [{ko:"뭘 그렇게 고민해요?",zh:"在烦恼什么？",scene:"关心"}],
+  "이유": [{ko:"이유가 뭐예요?",zh:"理由是什么？",scene:"询问"},{ko:"이유 없이 슬퍼요.",zh:"莫名地悲伤。",scene:"情感"}],
+  "문제": [{ko:"무슨 문제 있어요?",zh:"有什么问题？",scene:"关心"},{ko:"이 문제 어려워요.",zh:"这道题难。",scene:"学习"}],
+  "방법": [{ko:"좋은 방법 있어요?",zh:"有好办法吗？",scene:"讨论"}],
+  "기회": [{ko:"좋은 기회예요.",zh:"是个好机会。",scene:"评价"},{ko:"기회를 놓쳤어요.",zh:"错过机会了。",scene:"感慨"}],
+  "약": [{ko:"약 드세요.",zh:"请吃药。",scene:"关心"},{ko:"약을 사 왔어요.",zh:"买药回来了。",scene:"日常"}],
+  "치킨": [{ko:"치킨 시킬까요?",zh:"点炸鸡吧？",scene:"用餐"},{ko:"치맥 어때요?",zh:"炸鸡啤酒怎么样？",scene:"邀请"}],
+  "떡볶이": [{ko:"떡볶이 매워요.",zh:"辣炒年糕很辣。",scene:"用餐"}],
+  "비빔밥": [{ko:"비빔밥 하나 주세요.",zh:"请给我一份拌饭。",scene:"点餐"}],
+  "회의": [{ko:"회의가 있어요.",zh:"有会议。",scene:"工作"},{ko:"회의 끝났어요?",zh:"会议结束了吗？",scene:"工作"}],
+  "시험": [{ko:"내일 시험 있어요.",zh:"明天有考试。",scene:"学习"},{ko:"시험 잘 봤어요?",zh:"考试考得好吗？",scene:"关心"}],
+  "숙제": [{ko:"숙제 다 했어요?",zh:"作业做完了吗？",scene:"学习"}],
+  "수업": [{ko:"수업 끝났어요.",zh:"课结束了。",scene:"学习"}],
+  "도착하다": [{ko:"이제 도착했어요.",zh:"刚到了。",scene:"见面"}],
+  "출발하다": [{ko:"지금 출발할게요.",zh:"现在出发。",scene:"约见面"}],
+  "늦다": [{ko:"늦어서 죄송해요.",zh:"对不起我迟到了。",scene:"道歉"},{ko:"조금 늦을 것 같아요.",zh:"可能会晚一点。",scene:"告知"}],
+  "조심하다": [{ko:"차 조심하세요.",zh:"小心车。",scene:"提醒"},{ko:"조심해서 가세요.",zh:"路上小心。",scene:"告别"}],
+  "고생하다": [{ko:"고생하셨어요.",zh:"您辛苦了。",scene:"慰劳"}],
+  "수고하다": [{ko:"수고하세요.",zh:"辛苦了。",scene:"工作中告别"}]
+};
+
+const lookupExamples = (korean, customLib) => {
+  if (!korean) return null;
+  const key = korean.trim();
+  if (customLib[key]) return customLib[key];
+  if (BUILTIN_LIBRARY[key]) return BUILTIN_LIBRARY[key];
+  const suffixes = ['요', '아요', '어요', '습니다', '입니다'];
+  for (const suffix of suffixes) {
+    if (key.endsWith(suffix)) {
+      const stem = key.slice(0, -suffix.length);
+      const candidates = [stem + '다', stem, stem + '하다'];
+      for (const c of candidates) {
+        if (customLib[c]) return customLib[c];
+        if (BUILTIN_LIBRARY[c]) return BUILTIN_LIBRARY[c];
+      }
+    }
+  }
+  return null;
+};
+
+const detectType = (text) => {
+  if (!text) return 'word';
+  const trimmed = text.trim();
+  if (/[다요까]\.?$|[을를이가은는에서]/.test(trimmed) && trimmed.length > 4) return 'sentence';
+  if (/[()→\-~]/.test(trimmed)) return 'grammar';
+  return 'word';
+};
+
+const speakKorean = (text) => {
+  if (!text || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ko-KR';
+  utter.rate = 0.9;
+  const voices = window.speechSynthesis.getVoices();
+  const koVoice = voices.find(v => v.lang.startsWith('ko'));
+  if (koVoice) utter.voice = koVoice;
+  window.speechSynthesis.speak(utter);
+};
+
+const SpeakerButton = ({ text, size = 16, color = '#8B6F47' }) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); speakKorean(text); }}
+    style={{
+      background: 'transparent', border: 'none', cursor: 'pointer',
+      padding: 6, borderRadius: 6, color,
+      display: 'inline-flex', alignItems: 'center',
+    }}
+    aria-label="发音" title="点击发音"
+  >
+    <VolumeIcon size={size} />
+  </button>
+);
+
+// ============ localStorage helpers (replaces window.storage) ============
+const lsGet = (key) => {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? { value: v } : null;
+  } catch (e) { return null; }
+};
+const lsSet = (key, value) => {
+  try { localStorage.setItem(key, value); return true; }
+  catch (e) { console.error('localStorage set failed:', e); return false; }
+};
+
+function KoreanNotebook() {
+  const [notes, setNotes] = useState([]);
+  const [customLib, setCustomLib] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const [showBackupBanner, setShowBackupBanner] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [showLibInfo, setShowLibInfo] = useState(false);
+
+  const [form, setForm] = useState({
+    type: 'word', korean: '', meaning: '', example: '', note: '', source: 'duolingo',
+  });
+
+  const koreanInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const r = lsGet(STORAGE_KEY);
+      if (r) setNotes(JSON.parse(r.value));
+    } catch (e) {}
+    try {
+      const r = lsGet(CUSTOM_LIB_KEY);
+      if (r) setCustomLib(JSON.parse(r.value));
+    } catch (e) {}
+    try {
+      const last = lsGet(BACKUP_REMINDER_KEY);
+      const lastTs = last ? parseInt(last.value, 10) : 0;
+      const days = (Date.now() - lastTs) / (1000 * 60 * 60 * 24);
+      if (days >= BACKUP_INTERVAL_DAYS) {
+        const r = lsGet(STORAGE_KEY);
+        if (r && JSON.parse(r.value).length >= 3) setShowBackupBanner(true);
+      }
+    } catch (e) {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    lsSet(STORAGE_KEY, JSON.stringify(notes));
+  }, [notes, loading]);
+
+  useEffect(() => {
+    if (loading) return;
+    lsSet(CUSTOM_LIB_KEY, JSON.stringify(customLib));
+  }, [customLib, loading]);
+
+  useEffect(() => {
+    if (editingId) return;
+    if (form.korean) {
+      const d = detectType(form.korean);
+      if (d !== form.type) setForm(f => ({ ...f, type: d }));
+    }
+  }, [form.korean]);
+
+  const resetForm = () => {
+    setForm({ type: 'word', korean: '', meaning: '', example: '', note: '', source: 'duolingo' });
+    setEditingId(null);
+  };
+
+  const openForm = () => {
+    resetForm();
+    setShowForm(true);
+    setTimeout(() => koreanInputRef.current?.focus(), 100);
+  };
+
+  const handleSubmit = () => {
+    if (!form.korean.trim() || !form.meaning.trim()) return;
+    if (editingId) {
+      setNotes(notes.map(n => n.id === editingId ? { ...n, ...form, updatedAt: Date.now() } : n));
+    } else {
+      const n = { ...form, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), createdAt: Date.now(), updatedAt: Date.now() };
+      setNotes([n, ...notes]);
+    }
+    resetForm();
+    setShowForm(false);
+  };
+
+  const handleEdit = (note) => {
+    setForm({ type: note.type, korean: note.korean, meaning: note.meaning, example: note.example || '', note: note.note || '', source: note.source || 'duolingo' });
+    setEditingId(note.id);
+    setShowForm(true);
+    setTimeout(() => koreanInputRef.current?.focus(), 100);
+  };
+
+  const handleDelete = (id) => {
+    if (confirm('确定要删除这条笔记吗？')) setNotes(notes.filter(n => n.id !== id));
+  };
+
+  const adoptExample = (noteId, exampleText) => {
+    setNotes(notes.map(n => {
+      if (n.id !== noteId) return n;
+      const existing = n.example ? n.example + '\n' : '';
+      return { ...n, example: existing + exampleText, updatedAt: Date.now() };
+    }));
+  };
+
+  const copyPromptForClaude = async (note) => {
+    const prompt = '请为韩语单词「' + note.korean + '」（意思：' + note.meaning + '）生成 3 个生活化的实用例句。\n\n要求：\n- 简短、贴近日常生活\n- 难度适合初级到中级学习者\n- 自然口语风格\n\n请严格按以下 JSON 格式返回（一段完整的 JSON，方便我直接复制粘贴）：\n\n```json\n{\n  "' + note.korean + '": [\n    {"ko": "韩文例句1", "zh": "中文翻译", "scene": "场景标签"},\n    {"ko": "韩文例句2", "zh": "中文翻译", "scene": "场景标签"},\n    {"ko": "韩文例句3", "zh": "中文翻译", "scene": "场景标签"}\n  ]\n}\n```';
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedId(note.id);
+      setTimeout(() => setCopiedId(null), 2500);
+    } catch (e) {
+      alert('复制失败，请手动复制：\n\n' + prompt);
+    }
+  };
+
+  const handleImportLibrary = () => {
+    if (!importText.trim()) return;
+    try {
+      let text = importText.trim();
+      const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (match) text = match[1].trim();
+      const data = JSON.parse(text);
+      let added = 0, updated = 0;
+      const newLib = { ...customLib };
+      for (const [word, examples] of Object.entries(data)) {
+        if (!Array.isArray(examples)) continue;
+        const valid = examples.filter(e => e && e.ko && e.zh).map(e => ({
+          ko: String(e.ko), zh: String(e.zh), scene: String(e.scene || ''),
+        }));
+        if (valid.length === 0) continue;
+        if (newLib[word]) updated++; else added++;
+        newLib[word] = valid;
+      }
+      setCustomLib(newLib);
+      setImportText('');
+      setShowImportModal(false);
+      alert('扩展成功！新增 ' + added + ' 个词，更新 ' + updated + ' 个词。');
+    } catch (e) {
+      alert('导入失败：JSON 格式不正确');
+    }
+  };
+
+  const handleExport = () => {
+    const payload = {
+      version: 3,
+      exportedAt: new Date().toISOString(),
+      notes,
+      customLibrary: customLib,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'korean-notes-backup-' + date + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    lsSet(BACKUP_REMINDER_KEY, Date.now().toString());
+    setShowBackupBanner(false);
+  };
+
+  const handleImportClick = () => fileInputRef.current?.click();
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const imported = Array.isArray(data) ? data : data.notes;
+        if (!Array.isArray(imported)) throw new Error();
+        const map = new Map(notes.map(n => [n.id, n]));
+        let added = 0, updated = 0;
+        imported.forEach(n => {
+          if (!n.id || !n.korean) return;
+          const ex = map.get(n.id);
+          if (!ex) { map.set(n.id, n); added++; }
+          else if ((n.updatedAt || 0) > (ex.updatedAt || 0)) { map.set(n.id, n); updated++; }
+        });
+        const merged = Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        setNotes(merged);
+        if (data.customLibrary) {
+          setCustomLib({ ...customLib, ...data.customLibrary });
+        }
+        alert('导入成功！新增 ' + added + ' 条笔记，更新 ' + updated + ' 条。');
+      } catch (err) {
+        alert('导入失败：文件格式不正确');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const dismissBackupBanner = () => {
+    setShowBackupBanner(false);
+    lsSet(BACKUP_REMINDER_KEY, Date.now().toString());
+  };
+
+  const filteredNotes = notes.filter(n => {
+    if (activeTab !== 'all' && n.type !== activeTab) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return n.korean.toLowerCase().includes(q) || n.meaning.toLowerCase().includes(q) ||
+        (n.example || '').toLowerCase().includes(q) || (n.note || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const counts = {
+    all: notes.length,
+    word: notes.filter(n => n.type === 'word').length,
+    grammar: notes.filter(n => n.type === 'grammar').length,
+    sentence: notes.filter(n => n.type === 'sentence').length,
+  };
+
+  const getSourceInfo = (id) => SOURCES.find(s => s.id === id) || SOURCES[3];
+  const getTypeInfo = (id) => TYPES.find(t => t.id === id) || TYPES[0];
+
+  const builtinCount = Object.keys(BUILTIN_LIBRARY).length;
+  const customCount = Object.keys(customLib).length;
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAF7F2' }}>
+        <div style={{ fontFamily: 'Noto Serif KR, serif', fontSize: 24, color: '#8B6F47' }}>로딩 중...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #FAF7F2 0%, #F5EFE6 100%)',
+      fontFamily: '"Noto Sans KR", "PingFang SC", -apple-system, sans-serif',
+      paddingBottom: 120,
+    }}>
+      {showBackupBanner && (
+        <div style={{ background: '#FFF8E8', borderBottom: '1px solid #E8DFD0', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <AlertIcon size={18} color="#8B5A2B" />
+          <div style={{ flex: 1, fontSize: 14, color: '#4A3F2A' }}>已经一周没备份了，建议导出保存到云盘</div>
+          <button onClick={handleExport} style={{ background: '#2C2416', color: '#FAF7F2', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>立即备份</button>
+          <button onClick={dismissBackupBanner} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8B6F47', padding: 4 }}><XIcon size={16} /></button>
+        </div>
+      )}
+
+      <header style={{ padding: '40px 24px 24px', borderBottom: '1px solid #E8DFD0' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontFamily: 'Fraunces, serif', fontSize: 12, letterSpacing: '3px', color: '#8B6F47', textTransform: 'uppercase', marginBottom: 8 }}>
+              Korean · 한국어 · 韩语
+            </div>
+            <h1 style={{ fontFamily: 'Noto Serif KR, serif', fontSize: 36, fontWeight: 900, color: '#2C2416', margin: 0, letterSpacing: '-0.5px' }}>
+              나의 한국어 노트
+            </h1>
+            <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 15, color: '#8B6F47', marginTop: 6 }}>
+              我的韩语学习笔记本
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setShowLibInfo(true)} style={{ background: '#FFFFFF', border: '1px solid #E8DFD0', padding: '8px 12px', borderRadius: 10, fontSize: 13, color: '#4A3F2A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <LibraryIcon size={14} />词库 {builtinCount + customCount}
+            </button>
+            <button onClick={handleImportClick} style={{ background: '#FFFFFF', border: '1px solid #E8DFD0', padding: '8px 12px', borderRadius: 10, fontSize: 13, color: '#4A3F2A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <UploadIcon size={14} />导入
+            </button>
+            <button onClick={handleExport} disabled={notes.length === 0} style={{ background: '#FFFFFF', border: '1px solid #E8DFD0', padding: '8px 12px', borderRadius: 10, fontSize: 13, color: '#4A3F2A', cursor: notes.length === 0 ? 'not-allowed' : 'pointer', opacity: notes.length === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <DownloadIcon size={14} />备份
+            </button>
+            <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFile} style={{ display: 'none' }} />
+          </div>
+        </div>
+      </header>
+
+      <main style={{ maxWidth: 720, margin: '0 auto', padding: '24px' }}>
+        <div style={{ position: 'relative', marginBottom: 20 }}>
+          <div style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#8B6F47' }}><SearchIcon size={18} /></div>
+          <input type="text" placeholder="搜索单词、释义、例句..." value={search} onChange={(e) => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '14px 16px 14px 44px', border: '2px solid #E8DFD0', background: '#FAF7F2', borderRadius: 14, fontSize: 15, color: '#2C2416' }} />
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, overflowX: 'auto', paddingBottom: 4 }}>
+          {[{ id: 'all', label: '全部', count: counts.all }, { id: 'word', label: '单词', count: counts.word }, { id: 'grammar', label: '语法', count: counts.grammar }, { id: 'sentence', label: '例句', count: counts.sentence }].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={activeTab === tab.id ? 'tab-active' : ''}
+              style={{ padding: '10px 18px', background: '#FFFFFF', color: '#2C2416', border: '1px solid #E8DFD0', borderRadius: 24, fontSize: 14, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>
+              {tab.label}<span style={{ marginLeft: 6, fontSize: 12, opacity: 0.6 }}>{tab.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {filteredNotes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '80px 20px', color: '#8B6F47' }}>
+            <div style={{ fontSize: 64, marginBottom: 16, opacity: 0.3 }}>📖</div>
+            <div style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 18 }}>
+              {notes.length === 0 ? '还没有笔记，点击 + 开始记录吧' : '没有匹配的笔记'}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filteredNotes.map(note => {
+              const typeInfo = getTypeInfo(note.type);
+              const sourceInfo = getSourceInfo(note.source);
+              const isExpanded = expandedId === note.id;
+              const examples = note.type === 'word' ? lookupExamples(note.korean, customLib) : null;
+              const hasMore = note.example || note.note || note.type === 'word';
+              const SourceIconComp = sourceInfo.icon;
+              const TypeIconComp = typeInfo.icon;
+
+              return (
+                <div key={note.id} className="note-card" style={{ background: '#FFFFFF', borderRadius: 16, padding: 20, border: '1px solid #E8DFD0' }} onClick={() => hasMore && setExpandedId(isExpanded ? null : note.id)}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span className="type-pill" style={{ background: note.type === 'word' ? '#FFF4E0' : note.type === 'grammar' ? '#FFE8E8' : '#E8F4FF', color: note.type === 'word' ? '#8B5A2B' : note.type === 'grammar' ? '#A03030' : '#2C5282' }}>
+                        {typeInfo.label}
+                      </span>
+                      <span style={{ fontSize: 12, color: sourceInfo.color, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <SourceIconComp size={12} color={sourceInfo.color} />{sourceInfo.label}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 2 }}>
+                      <button onClick={(e) => { e.stopPropagation(); handleEdit(note); }} style={{ background: 'transparent', border: 'none', padding: 6, cursor: 'pointer', color: '#8B6F47', borderRadius: 6 }}><EditIcon size={14} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }} style={{ background: 'transparent', border: 'none', padding: 6, cursor: 'pointer', color: '#8B6F47', borderRadius: 6 }}><TrashIcon size={14} /></button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <div style={{ fontFamily: 'Noto Serif KR, serif', fontSize: 24, fontWeight: 700, color: '#2C2416', lineHeight: 1.3, flex: 1 }}>{note.korean}</div>
+                    <SpeakerButton text={note.korean} size={18} />
+                  </div>
+
+                  <div style={{ fontSize: 15, color: '#4A3F2A', lineHeight: 1.5 }}>{note.meaning}</div>
+
+                  {hasMore && (
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#8B6F47' }}>
+                      {isExpanded ? <ChevronUpIcon size={14} /> : <ChevronDownIcon size={14} />}
+                      {isExpanded ? '收起' : '展开详情'}
+                      {note.type === 'word' && examples && !isExpanded && (
+                        <span style={{ marginLeft: 6, padding: '2px 8px', background: '#FAF5EC', color: '#8B5A2B', borderRadius: 10, fontSize: 11 }}>
+                          库中有例句
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {isExpanded && (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed #E8DFD0', display: 'flex', flexDirection: 'column', gap: 14 }} onClick={(e) => e.stopPropagation()}>
+                      {note.example && (
+                        <div>
+                          <div style={{ fontSize: 11, color: '#8B6F47', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>我的例句</div>
+                          {note.example.split('\n').filter(Boolean).map((line, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '6px 0' }}>
+                              <div style={{ fontFamily: 'Noto Serif KR, serif', fontSize: 16, color: '#2C2416', lineHeight: 1.6, flex: 1 }}>{line}</div>
+                              <SpeakerButton text={line} size={14} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {note.note && (
+                        <div>
+                          <div style={{ fontSize: 11, color: '#8B6F47', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>备注</div>
+                          <div style={{ fontSize: 14, color: '#4A3F2A', lineHeight: 1.6 }}>{note.note}</div>
+                        </div>
+                      )}
+
+                      {note.type === 'word' && (
+                        <div>
+                          <div style={{ fontSize: 11, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
+                            生活化例句
+                          </div>
+
+                          {examples ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              {examples.map((ex, i) => (
+                                <div key={i} style={{ background: '#FAF5EC', borderRadius: 12, padding: 12, borderLeft: '3px solid #8B5A2B' }}>
+                                  {ex.scene && (
+                                    <div style={{ fontSize: 10, color: '#8B5A2B', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>{ex.scene}</div>
+                                  )}
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
+                                    <div style={{ fontFamily: 'Noto Serif KR, serif', fontSize: 16, color: '#2C2416', lineHeight: 1.5, flex: 1 }}>{ex.ko}</div>
+                                    <SpeakerButton text={ex.ko} size={14} />
+                                  </div>
+                                  <div style={{ fontSize: 13, color: '#6B5638', lineHeight: 1.5, marginBottom: 8 }}>{ex.zh}</div>
+                                  <button onClick={() => adoptExample(note.id, ex.ko + ' (' + ex.zh + ')')}
+                                    style={{ background: 'transparent', border: '1px solid #8B5A2B', color: '#8B5A2B', padding: '4px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
+                                    + 收藏到笔记
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ background: '#FFF8E8', borderRadius: 12, padding: 14, border: '1px dashed #E8DFD0' }}>
+                              <div style={{ fontSize: 13, color: '#8B6F47', marginBottom: 10, lineHeight: 1.6 }}>
+                                库中暂无「{note.korean}」的例句。复制提示语后回到 Claude 对话发送，再用「导入扩展」加入你的库。
+                              </div>
+                              <button onClick={() => copyPromptForClaude(note)}
+                                style={{ background: '#2C2416', color: '#FAF7F2', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                {copiedId === note.id ? <><CheckIcon size={14} /> 已复制</> : <><CopyIcon size={14} /> 复制提示语</>}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      {!showForm && !showImportModal && !showLibInfo && (
+        <>
+          <button onClick={() => setShowImportModal(true)}
+            style={{ position: 'fixed', bottom: 32, left: 32, width: 52, height: 52, borderRadius: '50%', background: '#8B5A2B', color: '#FAF7F2', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(139, 90, 43, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+            aria-label="导入扩展" title="导入 Claude 生成的例句">
+            <PasteIcon size={22} />
+          </button>
+          <button className="fab" onClick={openForm}
+            style={{ position: 'fixed', bottom: 32, right: 32, width: 64, height: 64, borderRadius: '50%', background: '#2C2416', color: '#FAF7F2', border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(44, 36, 22, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+            aria-label="添加笔记">
+            <PlusIcon size={28} />
+          </button>
+        </>
+      )}
+
+      {showLibInfo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44, 36, 22, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }} onClick={() => setShowLibInfo(false)}>
+          <div style={{ background: '#FAF7F2', borderRadius: 20, padding: 28, width: '100%', maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ fontFamily: 'Noto Serif KR, serif', fontSize: 20, margin: 0, color: '#2C2416' }}>例句库</h2>
+              <button onClick={() => setShowLibInfo(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8B6F47' }}><XIcon size={22} /></button>
+            </div>
+            <div style={{ fontSize: 15, color: '#4A3F2A', lineHeight: 1.7 }}>
+              <div style={{ marginBottom: 14 }}>
+                <strong>📚 内置词库：{builtinCount} 词</strong><br />
+                <span style={{ fontSize: 13, color: '#8B6F47' }}>TOPIK 1-2 级核心词汇，离线即用</span>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <strong>✨ 你的扩展库：{customCount} 词</strong><br />
+                <span style={{ fontSize: 13, color: '#8B6F47' }}>由 Claude 生成、你导入的词条</span>
+              </div>
+              <div style={{ background: '#FFF8E8', padding: 14, borderRadius: 10, fontSize: 13, lineHeight: 1.7 }}>
+                <strong>💡 如何扩展词库：</strong><br />
+                1. 在没有例句的单词笔记里，点「复制提示语」<br />
+                2. 回到 Claude 对话粘贴发送<br />
+                3. 复制 Claude 返回的 JSON<br />
+                4. 点左下角紫色「📋」按钮粘贴导入<br />
+                5. 之后这个词就永久有例句了！
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44, 36, 22, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }} onClick={() => setShowImportModal(false)}>
+          <div style={{ background: '#FAF7F2', borderRadius: '24px 24px 0 0', padding: '28px 24px', width: '100%', maxWidth: 600, maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ fontFamily: 'Noto Serif KR, serif', fontSize: 22, margin: 0, color: '#2C2416' }}>导入 Claude 例句</h2>
+              <button onClick={() => setShowImportModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8B6F47' }}><XIcon size={24} /></button>
+            </div>
+            <div style={{ fontSize: 14, color: '#4A3F2A', marginBottom: 14, lineHeight: 1.6 }}>
+              把 Claude 返回的 JSON 整段粘贴到下面：
+            </div>
+            <textarea value={importText} onChange={(e) => setImportText(e.target.value)}
+              placeholder='例如：&#10;```json&#10;{&#10;  "사랑": [&#10;    {"ko": "사랑해요.", "zh": "我爱你。", "scene": "表白"}&#10;  ]&#10;}&#10;```'
+              rows={10}
+              style={{ width: '100%', padding: 12, border: '2px solid #E8DFD0', background: '#FFFFFF', borderRadius: 12, fontSize: 13, fontFamily: 'monospace', color: '#2C2416', resize: 'vertical' }} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+              <button className="btn-ghost" onClick={() => { setImportText(''); setShowImportModal(false); }}>取消</button>
+              <button className="btn-primary" onClick={handleImportLibrary} disabled={!importText.trim()}>导入</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44, 36, 22, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }} onClick={() => { resetForm(); setShowForm(false); }}>
+          <div style={{ background: '#FAF7F2', borderRadius: '24px 24px 0 0', padding: '28px 24px', width: '100%', maxWidth: 600, maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontFamily: 'Noto Serif KR, serif', fontSize: 22, fontWeight: 700, color: '#2C2416', margin: 0 }}>
+                {editingId ? '编辑笔记' : '새 노트 · 新笔记'}
+              </h2>
+              <button onClick={() => { resetForm(); setShowForm(false); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8B6F47', padding: 4 }}><XIcon size={24} /></button>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+              {TYPES.map(t => {
+                const TypeBtnIcon = t.icon;
+                return (
+                  <button key={t.id} onClick={() => setForm({ ...form, type: t.id })}
+                    style={{ flex: 1, padding: '10px 8px', background: form.type === t.id ? '#2C2416' : '#FFFFFF', color: form.type === t.id ? '#FAF7F2' : '#2C2416', border: '1px solid ' + (form.type === t.id ? '#2C2416' : '#E8DFD0'), borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <TypeBtnIcon size={14} />{t.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>한국어 · 韩文 *</span>
+                  {form.korean && <SpeakerButton text={form.korean} size={14} />}
+                </label>
+                <input ref={koreanInputRef} type="text" className="form-input korean" placeholder="안녕하세요" value={form.korean} onChange={(e) => setForm({ ...form, korean: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>中文释义 *</label>
+                <input type="text" className="form-input" placeholder="你好" value={form.meaning} onChange={(e) => setForm({ ...form, meaning: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>
+                  例句 {form.type === 'grammar' && <span style={{ color: '#A03030' }}>(推荐)</span>}
+                </label>
+                <textarea className="form-input" placeholder="저는 학생입니다. (我是学生。)" value={form.example} onChange={(e) => setForm({ ...form, example: e.target.value })} rows={2} style={{ resize: 'vertical', fontFamily: 'Noto Serif KR, serif' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>备注（用法、易混淆点等）</label>
+                <textarea className="form-input" placeholder="敬语，正式场合使用..." value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} rows={2} style={{ resize: 'vertical' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>来源</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {SOURCES.map(s => {
+                    const SrcIcon = s.icon;
+                    return (
+                      <button key={s.id} onClick={() => setForm({ ...form, source: s.id })}
+                        style={{ padding: '8px 14px', background: form.source === s.id ? s.color : '#FFFFFF', color: form.source === s.id ? '#FFFFFF' : '#2C2416', border: '1px solid ' + (form.source === s.id ? s.color : '#E8DFD0'), borderRadius: 20, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <SrcIcon size={12} color={form.source === s.id ? '#FFFFFF' : '#2C2416'} />{s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 24, justifyContent: 'flex-end' }}>
+              <button className="btn-ghost" onClick={() => { resetForm(); setShowForm(false); }}>取消</button>
+              <button className="btn-primary" onClick={handleSubmit} disabled={!form.korean.trim() || !form.meaning.trim()}>
+                {editingId ? '保存修改' : '저장 · 保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<KoreanNotebook />);
+</script>
+</body>
+</html>
