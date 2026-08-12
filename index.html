@@ -162,8 +162,8 @@ const NOTEBOOKS = [
 const DEFAULT_NOTEBOOK_ID = 'korean';
 const ACTIVE_NOTEBOOK_KEY = 'active_notebook_id';
 const getStorageKeys = (notebookId) => notebookId === 'thai'
-  ? { notesKey: 'thai_notes_v1', libKey: 'thai_custom_library_v1' }
-  : { notesKey: STORAGE_KEY, libKey: CUSTOM_LIB_KEY };
+  ? { notesKey: 'thai_notes_v1', libKey: 'thai_custom_library_v1', backupReminderKey: 'thai_notes_last_backup_reminder' }
+  : { notesKey: STORAGE_KEY, libKey: CUSTOM_LIB_KEY, backupReminderKey: BACKUP_REMINDER_KEY };
 
 // ============ Built-in Library ============
 const BUILTIN_LIBRARY = {
@@ -554,8 +554,13 @@ const lookupExamples = (korean, customLib) => {
   return null;
 };
 
-const detectType = (text) => {
+const detectType = (text, notebookId) => {
   if (!text) return 'word';
+  // Korean-particle heuristic only applies to the Korean notebook; other
+  // notebooks (e.g. Thai) have no reliable auto-detect heuristic here, so
+  // we deliberately return null (meaning "no confident guess") rather than
+  // falsely defaulting to 'word' via a regex that can never match.
+  if (notebookId && notebookId !== 'korean') return null;
   const trimmed = text.trim();
   if (/[다요까]\.?$|[을를이가은는에서]/.test(trimmed) && trimmed.length > 4) return 'sentence';
   if (/[()→\-~]/.test(trimmed)) return 'grammar';
@@ -728,6 +733,7 @@ function KoreanNotebook() {
   const koreanInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const ocrFileInputRef = useRef(null);
+  const typeManuallySet = useRef(false);
 
   useEffect(() => {
     if (window.speechSynthesis) {
@@ -766,7 +772,7 @@ function KoreanNotebook() {
       setCustomLib(r ? JSON.parse(r.value) : {});
     } catch (e) { setCustomLib({}); }
     try {
-      const last = lsGet(BACKUP_REMINDER_KEY);
+      const last = lsGet(keys.backupReminderKey);
       const lastTs = last ? parseInt(last.value, 10) : 0;
       const days = (Date.now() - lastTs) / (1000 * 60 * 60 * 24);
       if (days >= BACKUP_INTERVAL_DAYS) {
@@ -789,15 +795,17 @@ function KoreanNotebook() {
 
   useEffect(() => {
     if (editingId) return;
+    if (typeManuallySet.current) return;
     if (form.korean) {
-      const d = detectType(form.korean);
-      if (d !== form.type) setForm(f => ({ ...f, type: d }));
+      const d = detectType(form.korean, nb.id);
+      if (d && d !== form.type) setForm(f => ({ ...f, type: d }));
     }
   }, [form.korean]);
 
   const resetForm = () => {
     setForm({ type: 'word', korean: '', meaning: '', example: '', note: '', source: 'duolingo', starred: false });
     setEditingId(null);
+    typeManuallySet.current = false;
   };
 
   const openForm = () => {
@@ -821,6 +829,7 @@ function KoreanNotebook() {
   const handleEdit = (note) => {
     setForm({ type: note.type, korean: note.korean, meaning: note.meaning, example: note.example || '', note: note.note || '', source: note.source || 'duolingo', starred: note.starred || false });
     setEditingId(note.id);
+    typeManuallySet.current = true;
     setShowForm(true);
     setTimeout(() => koreanInputRef.current?.focus(), 100);
   };
@@ -1062,7 +1071,7 @@ function KoreanNotebook() {
 
     const enriched = allItems.map((item, idx) => {
       const meaning = quickTranslate(item.korean, customLib);
-      const type = detectType(item.korean);
+      const type = detectType(item.korean, nb.id) || 'word';
       return {
         id: 'ocr_' + idx,
         korean: item.korean,
@@ -1122,6 +1131,8 @@ function KoreanNotebook() {
     const payload = {
       version: 4,
       exportedAt: new Date().toISOString(),
+      notebookId: nb.id,
+      notebookName: nb.label,
       notes,
       customLibrary: customLib,
     };
@@ -1135,7 +1146,7 @@ function KoreanNotebook() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    lsSet(BACKUP_REMINDER_KEY, Date.now().toString());
+    lsSet(getStorageKeys(notebookId).backupReminderKey, Date.now().toString());
     setShowBackupBanner(false);
   };
 
@@ -1150,6 +1161,14 @@ function KoreanNotebook() {
         const data = JSON.parse(ev.target.result);
         const imported = Array.isArray(data) ? data : data.notes;
         if (!Array.isArray(imported)) throw new Error();
+        if (!Array.isArray(data) && data.notebookId && data.notebookId !== notebookId) {
+          const fromLabel = data.notebookName || data.notebookId;
+          const toLabel = nb.label;
+          const proceed = window.confirm(
+            '这份备份来自「' + fromLabel + '」，当前是「' + toLabel + '」，继续导入可能会混入不同语言的笔记。是否仍要导入？'
+          );
+          if (!proceed) { e.target.value = ''; return; }
+        }
         const map = new Map(notes.map(n => [n.id, n]));
         let added = 0, updated = 0;
         imported.forEach(n => {
@@ -1176,7 +1195,7 @@ function KoreanNotebook() {
 
   const dismissBackupBanner = () => {
     setShowBackupBanner(false);
-    lsSet(BACKUP_REMINDER_KEY, Date.now().toString());
+    lsSet(getStorageKeys(notebookId).backupReminderKey, Date.now().toString());
   };
 
   const filteredNotes = notes.filter(n => {
@@ -1343,7 +1362,13 @@ function KoreanNotebook() {
                     <SpeakerButton text={note.korean} size={18} lang={nb.ttsLang} />
                   </div>
 
-                  <div style={{ fontSize: 15, color: note.meaning ? '#4A3F2A' : '#C4B5A0', lineHeight: 1.5, fontStyle: note.meaning ? 'normal' : 'italic', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.meaning || '（未填释义，点编辑可补充）'}</div>
+                  {note.type === 'grammar' ? (
+                    note.note && (
+                      <div style={{ fontSize: 15, color: '#4A3F2A', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.note}</div>
+                    )
+                  ) : (
+                    <div style={{ fontSize: 15, color: note.meaning ? '#4A3F2A' : '#C4B5A0', lineHeight: 1.5, fontStyle: note.meaning ? 'normal' : 'italic', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.meaning || '（未填释义，点编辑可补充）'}</div>
+                  )}
 
                   {hasMore && (
                     <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#8B6F47' }}>
@@ -1651,7 +1676,7 @@ function KoreanNotebook() {
               {TYPES.map(t => {
                 const TypeBtnIcon = t.icon;
                 return (
-                  <button key={t.id} onClick={() => setForm({ ...form, type: t.id })}
+                  <button key={t.id} onClick={() => { typeManuallySet.current = true; setForm({ ...form, type: t.id }); }}
                     style={{ flex: 1, padding: '10px 8px', background: form.type === t.id ? nb.accentDark : '#FFFFFF', color: form.type === t.id ? '#FAF7F2' : nb.accentDark, border: '1px solid ' + (form.type === t.id ? nb.accentDark : '#E8DFD0'), borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <TypeBtnIcon size={14} />{t.label}
                   </button>
