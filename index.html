@@ -134,6 +134,7 @@ const NOTEBOOKS = [
     newNoteTitle: '새 노트 · 新笔记',
     saveNewLabel: '저장 · 保存',
     loadingText: '로딩 중...',
+    ttsLang: 'ko-KR',
   },
   {
     id: 'thai',
@@ -155,6 +156,7 @@ const NOTEBOOKS = [
     newNoteTitle: 'บันทึกใหม่ · 新笔记',
     saveNewLabel: 'บันทึก · 保存',
     loadingText: 'กำลังโหลด...',
+    ttsLang: 'th-TH',
   },
 ];
 const DEFAULT_NOTEBOOK_ID = 'korean';
@@ -560,20 +562,21 @@ const detectType = (text) => {
   return 'word';
 };
 
-const speakKorean = (text) => {
+const speakKorean = (text, lang = 'ko-KR') => {
   if (!text || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'ko-KR';
+  utter.lang = lang;
   utter.rate = 0.9;
   const voices = window.speechSynthesis.getVoices();
-  const koVoice = voices.find(v => v.lang.startsWith('ko'));
-  if (koVoice) utter.voice = koVoice;
+  const langPrefix = lang.split('-')[0];
+  const matchVoice = voices.find(v => v.lang.startsWith(langPrefix));
+  if (matchVoice) utter.voice = matchVoice;
   window.speechSynthesis.speak(utter);
 };
 
-const SpeakerButton = ({ text, size = 16, color = '#8B6F47' }) => (
-  <button onClick={(e) => { e.stopPropagation(); speakKorean(text); }}
+const SpeakerButton = ({ text, size = 16, color = '#8B6F47', lang = 'ko-KR' }) => (
+  <button onClick={(e) => { e.stopPropagation(); speakKorean(text, lang); }}
     style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, color, display: 'inline-flex', alignItems: 'center' }}
     aria-label="发音" title="点击发音">
     <VolumeIcon size={size} />
@@ -839,7 +842,7 @@ function KoreanNotebook() {
   };
 
   const copyPromptForClaude = async (note) => {
-    const prompt = '请为韩语单词「' + note.korean + '」（意思：' + note.meaning + '）生成 3 个生活化的实用例句。\n\n要求：\n- 简短、贴近日常生活\n- 难度适合初级到中级学习者\n- 自然口语风格\n\n请严格按以下 JSON 格式返回：\n\n```json\n{\n  "' + note.korean + '": [\n    {"ko": "韩文例句1", "zh": "中文翻译", "scene": "场景标签"},\n    {"ko": "韩文例句2", "zh": "中文翻译", "scene": "场景标签"},\n    {"ko": "韩文例句3", "zh": "中文翻译", "scene": "场景标签"}\n  ]\n}\n```';
+    const prompt = '请为' + nb.langChar + '单词「' + note.korean + '」（意思：' + note.meaning + '）生成 3 个生活化的实用例句。\n\n要求：\n- 简短、贴近日常生活\n- 难度适合初级到中级学习者\n- 自然口语风格\n\n请严格按以下 JSON 格式返回：\n\n```json\n{\n  "' + note.korean + '": [\n    {"ko": "' + nb.langChar + '例句1", "zh": "中文翻译", "scene": "场景标签"},\n    {"ko": "' + nb.langChar + '例句2", "zh": "中文翻译", "scene": "场景标签"},\n    {"ko": "' + nb.langChar + '例句3", "zh": "中文翻译", "scene": "场景标签"}\n  ]\n}\n```';
     try {
       await navigator.clipboard.writeText(prompt);
       setCopiedId(note.id);
@@ -1092,7 +1095,7 @@ function KoreanNotebook() {
     // Only require: selected + korean filled. Meaning is optional (can fill in later).
     const toSave = ocrItems.filter(item => item.selected && item.korean.trim());
     if (toSave.length === 0) {
-      alert('请至少勾选一条韩文不为空的内容');
+      alert('请至少勾选一条' + nb.langChar + '不为空的内容');
       return;
     }
     
@@ -1337,7 +1340,7 @@ function KoreanNotebook() {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                     <div style={{ fontFamily: nb.fontFamily, fontSize: 24, fontWeight: 700, color: '#2C2416', lineHeight: 1.3, flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.korean}</div>
-                    <SpeakerButton text={note.korean} size={18} />
+                    <SpeakerButton text={note.korean} size={18} lang={nb.ttsLang} />
                   </div>
 
                   <div style={{ fontSize: 15, color: note.meaning ? '#4A3F2A' : '#C4B5A0', lineHeight: 1.5, fontStyle: note.meaning ? 'normal' : 'italic', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.meaning || '（未填释义，点编辑可补充）'}</div>
@@ -1362,7 +1365,7 @@ function KoreanNotebook() {
                           {note.example.split('\n').filter(Boolean).map((line, i) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '6px 0' }}>
                               <div style={{ fontFamily: nb.fontFamily, fontSize: 16, color: '#2C2416', lineHeight: 1.6, flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{line}</div>
-                              <SpeakerButton text={line} size={14} />
+                              <SpeakerButton text={line} size={14} lang={nb.ttsLang} />
                             </div>
                           ))}
                         </div>
@@ -1390,7 +1393,7 @@ function KoreanNotebook() {
                                   )}
                                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
                                     <div style={{ fontFamily: nb.fontFamily, fontSize: 16, color: '#2C2416', lineHeight: 1.5, flex: 1 }}>{ex.ko}</div>
-                                    <SpeakerButton text={ex.ko} size={14} />
+                                    <SpeakerButton text={ex.ko} size={14} lang={nb.ttsLang} />
                                   </div>
                                   <div style={{ fontSize: 13, color: '#6B5638', lineHeight: 1.5, marginBottom: 8 }}>{ex.zh}</div>
                                   <button onClick={() => adoptExample(note.id, ex.ko + ' (' + ex.zh + ')')}
@@ -1426,7 +1429,7 @@ function KoreanNotebook() {
         <>
           <button onClick={handleOcrClick}
             style={{ position: 'fixed', bottom: 32, left: 32, width: 52, height: 52, borderRadius: '50%', background: '#5B8DEF', color: '#FAF7F2', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(91, 141, 239, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
-            aria-label="图片识别" title="图片识别韩语">
+            aria-label="图片识别" title={'图片识别' + nb.langChar}>
             <CameraIcon size={22} />
           </button>
           <button onClick={() => setShowImportModal(true)}
@@ -1458,7 +1461,7 @@ function KoreanNotebook() {
               <div style={{ textAlign: 'center', padding: '40px 20px' }}>
                 <div style={{ width: 60, height: 60, margin: '0 auto 20px', borderRadius: '50%', border: '4px solid #E8DFD0', borderTopColor: '#5B8DEF' }} className="spinner"></div>
                 <div style={{ fontSize: 15, color: '#4A3F2A', marginBottom: 8 }}>
-                  {ocrTotalFiles > 1 ? '正在识别第 ' + ocrCurrentFile + ' / ' + ocrTotalFiles + ' 张图片...' : '正在识别韩语文字...'}
+                  {ocrTotalFiles > 1 ? '正在识别第 ' + ocrCurrentFile + ' / ' + ocrTotalFiles + ' 张图片...' : '正在识别' + nb.langChar + '文字...'}
                 </div>
                 <div style={{ fontSize: 13, color: '#8B6F47' }}>
                   {ocrEngine === 'cloud' ? '☁️ 云端识别中' : '📲 本地识别中'} · {ocrProgress}%
@@ -1476,7 +1479,7 @@ function KoreanNotebook() {
                 <div style={{ fontSize: 12, color: '#8B6F47', marginTop: 16, lineHeight: 1.6 }}>
                   {ocrEngine === 'cloud'
                     ? '优先使用云端识别（更准确），<br />若网络不可用会自动切换本地识别'
-                    : '本地识别中，首次需下载韩语模型（约 10MB）'}
+                    : '本地识别中，首次需下载' + nb.langChar + '模型（约 10MB）'}
                 </div>
               </div>
             )}
@@ -1533,7 +1536,7 @@ function KoreanNotebook() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                         <input type="text" value={item.korean} onChange={(e) => updateOcrItem(item.id, 'korean', e.target.value)}
                           style={{ flex: 1, padding: '8px 10px', border: '1px solid #E8DFD0', borderRadius: 8, fontSize: 16, fontFamily: nb.fontFamily, fontWeight: 500, background: '#FAF7F2', color: '#2C2416' }} />
-                        <SpeakerButton text={item.korean} size={16} />
+                        <SpeakerButton text={item.korean} size={16} lang={nb.ttsLang} />
                       </div>
                       <input type="text" value={item.meaning} onChange={(e) => updateOcrItem(item.id, 'meaning', e.target.value)}
                         placeholder={item.meaning ? '' : '请补充中文释义'}
@@ -1542,7 +1545,7 @@ function KoreanNotebook() {
                   ))}
                 </div>
                 <div style={{ background: '#FFF8E8', borderRadius: 10, padding: 10, fontSize: 12, color: '#8B6F47', marginBottom: 16, lineHeight: 1.5 }}>
-                  💡 提示：库中已有的词会自动填中文释义。释义可以留空（之后在笔记里点编辑随时补充）。可以编辑韩文修正识别错误。
+                  💡 提示：库中已有的词会自动填中文释义。释义可以留空（之后在笔记里点编辑随时补充）。{'可以编辑' + nb.langChar + '修正识别错误。'}
                 </div>
               </>
             )}
@@ -1661,7 +1664,7 @@ function KoreanNotebook() {
                   <div>
                     <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span>{nb.langWord} *</span>
-                      {form.korean && <SpeakerButton text={form.korean} size={14} />}
+                      {form.korean && <SpeakerButton text={form.korean} size={14} lang={nb.ttsLang} />}
                     </label>
                     <input ref={koreanInputRef} type="text" className={'form-input ' + nb.fontClass} placeholder={nb.placeholder} value={form.korean} onChange={(e) => setForm({ ...form, korean: e.target.value })} style={{ fontFamily: nb.fontFamily }} />
                   </div>
@@ -1685,7 +1688,7 @@ function KoreanNotebook() {
                   <div>
                     <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span>语法知识点 *</span>
-                      {form.korean && <SpeakerButton text={form.korean} size={14} />}
+                      {form.korean && <SpeakerButton text={form.korean} size={14} lang={nb.ttsLang} />}
                     </label>
                     <input ref={koreanInputRef} type="text" className={'form-input ' + nb.fontClass} placeholder={nb.id === 'thai' ? '-ครับ/-ค่ะ' : '-았/었어요'} value={form.korean} onChange={(e) => setForm({ ...form, korean: e.target.value })} style={{ fontFamily: nb.fontFamily }} />
                   </div>
@@ -1701,7 +1704,7 @@ function KoreanNotebook() {
                   <div>
                     <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span>{nb.sentenceLangWord} *</span>
-                      {form.korean && <SpeakerButton text={form.korean} size={14} />}
+                      {form.korean && <SpeakerButton text={form.korean} size={14} lang={nb.ttsLang} />}
                     </label>
                     <textarea ref={koreanInputRef} className={'form-input ' + nb.fontClass} placeholder={nb.placeholder} value={form.korean} onChange={(e) => setForm({ ...form, korean: e.target.value })} rows={2} style={{ resize: 'vertical', fontFamily: nb.fontFamily, whiteSpace: 'pre-wrap', wordBreak: 'break-word', minHeight: 80 }} />
                   </div>
