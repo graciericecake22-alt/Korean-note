@@ -135,6 +135,7 @@ const NOTEBOOKS = [
     saveNewLabel: '저장 · 保存',
     loadingText: '로딩 중...',
     ttsLang: 'ko-KR',
+    mymemoryLang: 'ko',
   },
   {
     id: 'thai',
@@ -157,6 +158,7 @@ const NOTEBOOKS = [
     saveNewLabel: 'บันทึก · 保存',
     loadingText: 'กำลังโหลด...',
     ttsLang: 'th-TH',
+    mymemoryLang: 'th',
   },
 ];
 const DEFAULT_NOTEBOOK_ID = 'korean';
@@ -587,6 +589,46 @@ const SpeakerButton = ({ text, size = 16, color = '#8B6F47', lang = 'ko-KR' }) =
     <VolumeIcon size={size} />
   </button>
 );
+
+// Auto-translate button: queries MyMemory's free translation API using the
+// notebook's source-language text and fills the result into a target text
+// setter. Shows a loading state while the request is in flight and guards
+// against MyMemory's known "warning"/"invalid" placeholder responses so we
+// never overwrite the meaning field with garbage.
+const TranslateButton = ({ text, srcLang, onResult, size = 12 }) => {
+  const [loading, setLoading] = React.useState(false);
+  const handleClick = async (e) => {
+    e.stopPropagation();
+    if (!text || !text.trim() || loading) return;
+    setLoading(true);
+    try {
+      const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.trim()) + '&langpair=' + srcLang + '|zh';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('network');
+      const data = await res.json();
+      const translated = data && data.responseData && data.responseData.translatedText;
+      const isBad = !translated
+        || data.responseStatus !== 200
+        || /MYMEMORY WARNING|INVALID/i.test(translated);
+      if (isBad) {
+        window.alert('自动翻译失败，请手动填写');
+      } else {
+        onResult(translated);
+      }
+    } catch (err) {
+      window.alert('自动翻译失败，请手动填写');
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <button onClick={handleClick} disabled={loading}
+      style={{ background: 'transparent', border: 'none', cursor: loading ? 'default' : 'pointer', padding: '2px 6px', borderRadius: 6, color: '#8B6F47', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, opacity: loading ? 0.6 : 1 }}
+      aria-label="自动翻译" title="一键查询/自动翻译">
+      <GlobeIcon size={size} />{loading ? '翻译中...' : '自动翻译'}
+    </button>
+  );
+};
 
 const lsGet = (key) => { try { const v = localStorage.getItem(key); return v ? { value: v } : null; } catch (e) { return null; } };
 const lsSet = (key, value) => { try { localStorage.setItem(key, value); return true; } catch (e) { return false; } };
@@ -1694,7 +1736,10 @@ function KoreanNotebook() {
                     <input ref={koreanInputRef} type="text" className={'form-input ' + nb.fontClass} placeholder={nb.placeholder} value={form.korean} onChange={(e) => setForm({ ...form, korean: e.target.value })} style={{ fontFamily: nb.fontFamily }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>中文释义（可留空）</label>
+                    <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>中文释义（可留空）</span>
+                      {form.korean && form.korean.trim() && <TranslateButton text={form.korean} srcLang={nb.mymemoryLang} onResult={(t) => setForm(f => ({ ...f, meaning: t }))} />}
+                    </label>
                     <input type="text" className="form-input" placeholder="你好" value={form.meaning} onChange={(e) => setForm({ ...form, meaning: e.target.value })} />
                   </div>
                   <div>
@@ -1734,7 +1779,10 @@ function KoreanNotebook() {
                     <textarea ref={koreanInputRef} className={'form-input ' + nb.fontClass} placeholder={nb.placeholder} value={form.korean} onChange={(e) => setForm({ ...form, korean: e.target.value })} rows={2} style={{ resize: 'vertical', fontFamily: nb.fontFamily, whiteSpace: 'pre-wrap', wordBreak: 'break-word', minHeight: 80 }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>释义</label>
+                    <label style={{ fontSize: 12, color: '#8B6F47', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>释义</span>
+                      {form.korean && form.korean.trim() && <TranslateButton text={form.korean} srcLang={nb.mymemoryLang} onResult={(t) => setForm(f => ({ ...f, meaning: t }))} />}
+                    </label>
                     <input type="text" className="form-input" placeholder="你好" value={form.meaning} onChange={(e) => setForm({ ...form, meaning: e.target.value })} />
                   </div>
                   <div>
